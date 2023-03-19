@@ -6,19 +6,23 @@ import pandas as pd
 url = "https://hltv.org/results"
 html = requests.get(url)
 doc = BeautifulSoup(html.content, "lxml")
-results = pd.DataFrame()
-tables = doc.find_all("table")
-for i in tables:
-    team1_name = i.find("div", {"class": "line-align team1"}).get_text().strip()
-    team2_name = i.find("div", {"class": "line-align team2"}).get_text().strip()
-    team1_score = i.find("td", {"class": "result-score"}).get_text()[0]
-    team2_score = i.find("td", {"class": "result-score"}).get_text()[-1]
-    event_name = i.find("span", {"class": "event-name"}).get_text()
-    formula = i.find("td", {"class": "star-cell"}).get_text().strip()
-    # add each match to dataframe
-    row = pd.DataFrame(
-        [{'team_1': team1_name, 'team_2': team2_name, 'team1_score': team1_score, 'team2_score': team2_score,
-          'event_name': event_name, 'formula': formula}])
-    results = pd.concat([results, row], ignore_index=True)
 
-print(results.head())
+match_data = []
+results = doc.find_all("div", {"class": "result-con"})
+df_results = pd.DataFrame(columns=['team1_name', 'team2_name', 'team1_score', 'team2_score', 'event', 'type'])
+for i in results:
+    tr_tags = i.find_all("tr")
+    for tr in tr_tags:
+        td_tags = tr.find_all("td")
+        for td in td_tags:
+            td_data = (td.get_text().strip())
+            match_data.append(td_data)
+        match_data[1] = match_data[1].split(' - ')
+        match_data.insert(3, match_data[1][0])
+        match_data.insert(4, match_data[1][1])
+        match_data.pop(1)
+        new_df = pd.DataFrame([match_data], columns=df_results.columns)
+        df_results = pd.concat([df_results, new_df], ignore_index=True)
+        match_data = []
+
+
