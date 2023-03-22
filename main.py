@@ -1,6 +1,15 @@
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import time
+from requests_html import HTMLSession
+
+
 
 
 class ResultsScraper:
@@ -10,7 +19,7 @@ class ResultsScraper:
 
     def scrape_results_page(self):
         page = requests.get(self.url)
-        soup = BeautifulSoup(page.content, 'lxml')
+        soup = BeautifulSoup(page.content, 'html.parser')
         results_list = soup.find_all('div', {'class': 'result-con'})
         results = []
         for result in results_list:
@@ -51,21 +60,44 @@ class ResultsScraper:
 
 
 class PlayerScraper:
-    def __init__(self, url):
-        self.url = url
+    def __init__(self):
+        self.url = "https://www.hltv.org/stats/players?startDate=all"
         self.player_info_df = pd.DataFrame(columns=['nickname', 'name', 'second_name', 'age', 'team'])
 
-    def scrape_player_info(self):
+    def get_page_content(self):
         page = requests.get(self.url)
         soup = BeautifulSoup(page.content, 'lxml')
-        # implement player info scraping logic here
         return soup
 
-    def save_player_info(self):
-        # implement saving player info to file logic here
-        pass
+    def get_player_url(self):
+        driver = webdriver.Chrome()
+        driver.get(self.url)
+        driver.maximize_window()
+        # accept cookies
+        cookies_dialog = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.ID, "CybotCookiebotDialog"))
+        )
+        accept_button = cookies_dialog.find_element(By.CSS_SELECTOR, "#CybotCookiebotDialogBodyButtonDecline")
+        accept_button.click()
+        # get page source
+        content = driver.page_source.encode('utf-8').strip()
+        soup = BeautifulSoup(content, "html.parser")
+        stats_table = soup.find('table', {'class': 'stats-table player-ratings-table'})
+        player_col = stats_table.find_all('td', {'class': 'playerCol'})
+        for player in player_col:
+            player_url = player.find("a", href=True)
+            player_url = player_url['href']
+            print(player_url)
+        return
 
-
-results_scraper = ResultsScraper()
-results_df = results_scraper.scrape_all_results_pages()
-print(results_df)
+    # def scrape_player_info(self):
+    #     # page = requests.get("https://www.hltv.org/stats/players/11893/zywoo?startDate=all")
+    #     # soup = BeautifulSoup(page.content, 'html.parser')
+    #     # print(soup)
+    #     session = HTMLSession()
+    #     r = session.get("https://www.hltv.org/stats/players/11893/zywoo?startDate=all")
+    #     r.html.render(sleep=5)
+    #     soup = BeautifulSoup(r.html.raw_html, "html.parser")
+    #     print(soup)
+    #
+    #     return
