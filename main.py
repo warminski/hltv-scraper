@@ -10,8 +10,6 @@ import time
 from requests_html import HTMLSession
 
 
-
-
 class ResultsScraper:
     def __init__(self):
         self.url = "https://hltv.org/results"
@@ -62,7 +60,11 @@ class ResultsScraper:
 class PlayerScraper:
     def __init__(self):
         self.url = "https://www.hltv.org/stats/players?startDate=all"
-        self.player_info_df = pd.DataFrame(columns=['nickname', 'name', 'second_name', 'age', 'team'])
+        self.all_players_stats_df = pd.DataFrame(
+            columns=['nickname', 'team', 'rating 2.0', 'DPR', 'KAST_percentage', 'IMPACT', 'ADR', 'KPR', 'Total_kills',
+                     'Headshot_percentage', 'Total_deaths', 'K/D_Ratio', 'Damage_round', 'Grenade_dmg_round',
+                     'Maps_played', 'Rounds_played', 'Kills_round', 'Assists_round', 'Deaths_round',
+                     'Saved_by_teammate_round', 'Saved_teammates_round'])
 
     def get_page_content(self):
         page = requests.get(self.url)
@@ -90,14 +92,43 @@ class PlayerScraper:
             print(player_url)
         return
 
-    # def scrape_player_info(self):
-    #     # page = requests.get("https://www.hltv.org/stats/players/11893/zywoo?startDate=all")
-    #     # soup = BeautifulSoup(page.content, 'html.parser')
-    #     # print(soup)
-    #     session = HTMLSession()
-    #     r = session.get("https://www.hltv.org/stats/players/11893/zywoo?startDate=all")
-    #     r.html.render(sleep=5)
-    #     soup = BeautifulSoup(r.html.raw_html, "html.parser")
-    #     print(soup)
-    #
-    #     return
+    def scrape_player_info(self):
+        # list for storing all the data
+        player_info = []
+        # load selenium and accept cookies
+        url = "https://www.hltv.org/stats/players/11893/zywoo?startDate=all"
+        dr = webdriver.Chrome()
+        dr.implicitly_wait(2)
+        dr.get(url)
+        dr.find_element(By.ID, "CybotCookiebotDialog")
+        # parse the page for bs4
+        content = dr.page_source.encode('utf-8').strip()
+        soup = BeautifulSoup(content, "html.parser")
+        # find basic stat box on single player page and scrape data
+        summary_box = soup.find('div', {'class': 'summaryBreakdownContainer'})
+        name = summary_box.find('h1').get_text()
+        player_info.append(name)
+        team = summary_box.find('div', {'class': 'SummaryTeamname text-ellipsis'}).get_text()
+        player_info.append(team)
+        basic_stats = summary_box.find_all('div', {'class': 'summaryStatBreakdownDataValue'})
+        for stat in basic_stats:
+            player_info.append(stat.get_text())
+        # find full stats and scrape it
+        stats = soup.find('div', {'class': 'statistics'})
+        full_stats = stats.find_all('div',{'class':'stats-row'})
+        for stat in full_stats:
+            player_info.append(stat.find_all("span")[1].get_text())
+        player_info[4] = round((float(player_info[4].strip('%')) / 100), 3)
+        player_info[9] = round((float(player_info[9].strip('%')) / 100), 3)
+        for i in range(2, len(player_info)):
+            player_info[i] = round(float(player_info[i]), 2)
+        player_info.pop()
+        # convert data to Dataframe
+        player_info_df = pd.DataFrame([player_info],columns=self.all_players_stats_df.columns)
+
+        return player_info_df
+
+
+player_scraper = PlayerScraper()
+print(player_scraper.scrape_player_info())
+
