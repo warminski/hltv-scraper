@@ -72,17 +72,12 @@ class PlayerScraper:
         return soup
 
     def get_player_url(self):
-        driver = webdriver.Chrome()
-        driver.get(self.url)
-        driver.maximize_window()
-        # accept cookies
-        cookies_dialog = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.ID, "CybotCookiebotDialog"))
-        )
-        accept_button = cookies_dialog.find_element(By.CSS_SELECTOR, "#CybotCookiebotDialogBodyButtonDecline")
-        accept_button.click()
-        # get page source
-        content = driver.page_source.encode('utf-8').strip()
+        dr = webdriver.Chrome()
+        dr.implicitly_wait(2)
+        dr.get(self.url)
+        dr.find_element(By.ID, "CybotCookiebotDialog")
+        # parse the page for bs4
+        content = dr.page_source.encode('utf-8').strip()
         soup = BeautifulSoup(content, "html.parser")
         stats_table = soup.find('table', {'class': 'stats-table player-ratings-table'})
         player_col = stats_table.find_all('td', {'class': 'playerCol'})
@@ -130,5 +125,6 @@ class PlayerScraper:
 
 
 player_scraper = PlayerScraper()
-print(player_scraper.scrape_player_info())
+player_scraper.get_player_url()
+#print(player_scraper.scrape_player_info())
 
